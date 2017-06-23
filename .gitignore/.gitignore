@@ -1,0 +1,101 @@
+  public static class Cryptography
+    {
+        private static readonly byte[] initVectorBytes = Encoding.ASCII.GetBytes("tu89geji340t89u2");
+
+        // This constant is used to determine the keysize of the encryption algorithm.
+        private const int keysize = 256;
+        private const string passPhrase = "gi";
+        public static string Encrypt(string plainText)
+        {
+            byte[] plainTextBytes = Encoding.UTF8.GetBytes(plainText);
+            using (PasswordDeriveBytes password = new PasswordDeriveBytes(passPhrase, null))
+            {
+                byte[] keyBytes = password.GetBytes(keysize / 8);
+                using (RijndaelManaged symmetricKey = new RijndaelManaged())
+                {
+                    symmetricKey.Mode = CipherMode.CBC;
+                    using (ICryptoTransform encryptor = symmetricKey.CreateEncryptor(keyBytes, initVectorBytes))
+                    {
+                        using (MemoryStream memoryStream = new MemoryStream())
+                        {
+                            using (CryptoStream cryptoStream = new CryptoStream(memoryStream, encryptor, CryptoStreamMode.Write))
+                            {
+                                cryptoStream.Write(plainTextBytes, 0, plainTextBytes.Length);
+                                cryptoStream.FlushFinalBlock();
+                                byte[] cipherTextBytes = memoryStream.ToArray();
+                                return Convert.ToBase64String(cipherTextBytes);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        public static string Decrypt(string cipherText)
+        {
+            byte[] cipherTextBytes = Convert.FromBase64String(cipherText);
+            using (PasswordDeriveBytes password = new PasswordDeriveBytes(passPhrase, null))
+            {
+                byte[] keyBytes = password.GetBytes(keysize / 8);
+                using (RijndaelManaged symmetricKey = new RijndaelManaged())
+                {
+                    symmetricKey.Mode = CipherMode.CBC;
+                    
+                    using (ICryptoTransform decryptor = symmetricKey.CreateDecryptor(keyBytes, initVectorBytes))
+                    {
+                        using (MemoryStream memoryStream = new MemoryStream(cipherTextBytes))
+                        {
+                            using (CryptoStream cryptoStream = new CryptoStream(memoryStream, decryptor, CryptoStreamMode.Read))
+                            {
+                                byte[] plainTextBytes = new byte[cipherTextBytes.Length];
+                                int decryptedByteCount = cryptoStream.Read(plainTextBytes, 0, plainTextBytes.Length);
+
+                                return Encoding.UTF8.GetString(plainTextBytes, 0, decryptedByteCount);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        public static string GetIPAddress()
+        {
+            System.Web.HttpContext context = System.Web.HttpContext.Current;
+            string ipAddress = context.Request.ServerVariables["HTTP_X_FORWARDED_FOR"];
+            if (!string.IsNullOrEmpty(ipAddress))
+            {
+                string[] addresses = ipAddress.Split(',');
+                if (addresses.Length != 0)
+                {
+                    return addresses[0];
+                }
+            }
+            return context.Request.ServerVariables["REMOTE_ADDR"];
+        }
+        //public static string GetIPAddress()
+        //{
+        //    System.Web.HttpContext context = System.Web.HttpContext.Current;
+        //    string ipAddress = context.Request.ServerVariables["REMOTE_ADDR"];
+        //    string IP = System.Web.HttpContext.Current.Request.Params["HTTP_CLIENT_IP"] ?? System.Web.HttpContext.Current.Request.UserHostAddress;
+        //    if (!string.IsNullOrEmpty(ipAddress))
+        //    {
+        //        string[] addresses = ipAddress.Split(',');
+        //        if (addresses.Length != 0)
+        //        {
+        //            return addresses[0];
+        //        }
+        //    }
+        //    return context.Request.ServerVariables["REMOTE_ADDR"];
+        //}
+
+        public static string GetSHA1(this string password)
+        {
+            SHA1CryptoServiceProvider sh = new SHA1CryptoServiceProvider();
+            sh.ComputeHash(ASCIIEncoding.ASCII.GetBytes(password));
+            byte[] re = sh.Hash;
+            StringBuilder sb = new StringBuilder();
+            foreach (byte b in re)
+            {
+                sb.Append(b.ToString("x2"));
+            }
+            return sb.ToString();
+        }
